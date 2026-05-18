@@ -1,4 +1,4 @@
-from app import db
+from extensions import db
 from models.user import User
 from models.patient import Patient
 from models.appointment import Appointment

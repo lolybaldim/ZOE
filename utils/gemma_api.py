@@ -11,52 +11,71 @@ LANGUAGE_NAMES = {
     "sw": "Swahili",
 }
 
-HEALTH_SYSTEM_PROMPT = """You are ZOE, an AI healthcare assistant for underserved communities in Rwanda, Sudan, and across sub-Saharan Africa and the Middle East.
+HEALTH_SYSTEM_PROMPT = """You are ZOE, an AI healthcare assistant for underserved communities.
 
-Your role:
-1. Analyze symptoms provided by the user
-2. Respond with possible health concerns (NOT a diagnosis)
-3. Assign one urgency level: Low / Moderate / High / Emergency
-4. Recommend appropriate action (rest at home / visit a clinic / seek emergency care)
-5. Always advise consulting a real doctor for medical decisions
-6. Respond in {language}
-7. Use simple, clear language suitable for low-literacy users
-8. Be empathetic, calm, and supportive
+CRITICAL: Output ONLY the final response. No thinking steps, no reasoning bullets, no draft markers, no self-evaluation.
 
-IMPORTANT RULES:
-- Never diagnose. Say "possible" or "may indicate"
-- For Emergency urgency: always say SEEK EMERGENCY CARE IMMEDIATELY
-- Keep responses concise (max 250 words)
-- Format: start with urgency level on its own line as: URGENCY: [level]
+Your response must follow this exact format:
+URGENCY: [Low/Moderate/High/Emergency]
+[Your response in {language} — max 150 words, simple language, empathetic tone]
 
-Emergency symptoms that ALWAYS require Emergency urgency:
-- Chest pain or tightness
-- Difficulty breathing / shortness of breath
-- Heavy or uncontrolled bleeding
-- Loss of consciousness or fainting
-- Sudden severe headache with vision changes
-- Signs of stroke (face drooping, arm weakness, speech difficulty)
-- Severe allergic reaction
-"""
+Rules:
+- Never diagnose. Use "may indicate" or "possible"
+- For Emergency: say SEEK EMERGENCY CARE IMMEDIATELY
+- Respond in {language}
+- Emergency symptoms: chest pain, difficulty breathing, heavy bleeding, loss of consciousness, stroke signs"""
 
 EDUCATION_SYSTEM_PROMPT = """You are ZOE, an AI health educator for underserved communities.
 
-Provide clear, factual, and supportive health education. Respond in {language}.
-Keep answers simple, under 200 words, suitable for low-literacy users.
-Do NOT diagnose or prescribe. Always recommend professional medical consultation.
-Topics: maternal health, hygiene, nutrition, disease prevention, mental health, child health.
-"""
+CRITICAL: Output ONLY the educational answer. No thinking, no reasoning, no draft markers, no checklists.
+
+Respond in {language}. Max 150 words. Simple language. No diagnosis or prescriptions.
+Start your response directly with the educational content."""
+
+PREFERRED_MODELS = ["gemini-2.5-flash", "gemma-4-31b-it", "gemini-2.0-flash"]
 
 
-PREFERRED_MODELS = ["gemma-4-31b-it", "gemini-2.5-flash", "gemini-2.0-flash"]
-
-
-def _get_model(model_name: str = PREFERRED_MODELS[0], system: str = ""):
+def _get_model(model_name: str, system: str = ""):
     return genai.GenerativeModel(
         model_name=model_name,
         system_instruction=system if system else None,
-        generation_config={"temperature": 0.4, "max_output_tokens": 500},
+        generation_config={"temperature": 0.3, "max_output_tokens": 400},
     )
+
+
+def _extract_final(text: str) -> str:
+    """Extract only the actual response, stripping chain-of-thought reasoning."""
+    # If model included a Draft: section, take only the last one
+    draft_split = re.split(r'\*{0,2}Draft:\*{0,2}\s*', text, flags=re.IGNORECASE)
+    if len(draft_split) > 1:
+        return draft_split[-1].strip()
+
+    # Strip lines that are reasoning bullets: lines starting with * "..." or * text in quotes
+    lines = text.splitlines()
+    clean = []
+    for line in lines:
+        s = line.strip()
+        # Skip reasoning bullet lines (start with * followed by space or quote)
+        if re.match(r'^\*\s+[\"\']?[A-Z]', s) and not re.match(r'^\*\*', s):
+            continue
+        # Skip checklist lines
+        if re.search(r'\?\s*(Yes|No)\.?$', s, re.IGNORECASE):
+            continue
+        # Skip lines with self-evaluation markers
+        if any(m in s.lower() for m in ['draft:', 'self-correction', 'alternative', 'wait,', 'actually,', 'hmm,', 'let me']):
+            continue
+        clean.append(line)
+
+    result = '\n'.join(clean).strip()
+
+    # If still too noisy, take the last coherent paragraph
+    if result.count('*') > 10:
+        paragraphs = re.split(r'\n{2,}', text)
+        for para in reversed(paragraphs):
+            if len(para.strip()) > 40 and para.count('*') < 3:
+                return para.strip()
+
+    return result
 
 
 def _extract_urgency(text: str) -> str:
@@ -84,7 +103,7 @@ def _call_with_fallback(user_prompt: str, system: str = "") -> str:
             last_error = e
             continue
     error_str = str(last_error)
-    if "quota" in error_str.lower() or "exhausted" in error_str.lower() or "429" in error_str:
+    if "quota" in error_str.lower() or "429" in error_str:
         raise RuntimeError("quota_exceeded")
     raise RuntimeError(f"api_error: {error_str[:200]}")
 
@@ -93,18 +112,17 @@ def get_health_response(symptoms: str, language: str = "en") -> dict:
     lang_name = LANGUAGE_NAMES.get(language, "English")
     system = HEALTH_SYSTEM_PROMPT.format(language=lang_name)
     try:
-        text = _call_with_fallback(f"Patient symptoms: {symptoms}", system)
-        urgency = _extract_urgency(text)
-        clean_response = re.sub(r"URGENCY:\s*(Low|Moderate|High|Emergency)\n?", "", text, flags=re.IGNORECASE).strip()
-        return {"response": clean_response, "urgency": urgency}
+        raw = _call_with_fallback(f"Patient symptoms: {symptoms}", system)
+        urgency = _extract_urgency(raw)
+        text = _extract_final(raw)
+        clean = re.sub(r"URGENCY:\s*(Low|Moderate|High|Emergency)\n?", "", text, flags=re.IGNORECASE).strip()
+        return {"response": clean, "urgency": urgency}
     except RuntimeError as e:
         if "quota_exceeded" in str(e):
-            msg = ("⚠️ The AI service is temporarily unavailable due to API quota limits. "
-                   "Please ask the administrator to enable billing on the Google Cloud project. "
+            msg = ("⚠️ AI service unavailable — API quota exceeded. "
                    "If this is an emergency, please call emergency services immediately.")
         else:
-            msg = ("I'm unable to process your request right now. "
-                   "Please seek immediate medical attention if this is an emergency.")
+            msg = "Unable to process your request. Please seek medical attention if this is an emergency."
         return {"response": msg, "urgency": "Low"}
 
 
@@ -112,9 +130,9 @@ def get_education_response(question: str, language: str = "en") -> str:
     lang_name = LANGUAGE_NAMES.get(language, "English")
     system = EDUCATION_SYSTEM_PROMPT.format(language=lang_name)
     try:
-        return _call_with_fallback(f"Question: {question}", system)
+        raw = _call_with_fallback(f"Question: {question}", system)
+        return _extract_final(raw)
     except RuntimeError as e:
         if "quota_exceeded" in str(e):
-            return ("⚠️ The AI service is temporarily unavailable due to API quota limits. "
-                    "Please ask the administrator to enable billing on the Google Cloud project.")
-        return "I'm unable to answer that question right now. Please consult a healthcare professional."
+            return "⚠️ AI service unavailable — API quota exceeded."
+        return "Unable to answer right now. Please consult a healthcare professional."

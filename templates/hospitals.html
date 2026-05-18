@@ -92,24 +92,28 @@ function searchManual() {
   });
 }
 
+const TYPE_QUERY = {
+  hospital: 'hospital',
+  doctor:   'clinic OR health center',
+  pharmacy: 'pharmacy',
+  emergency:'emergency hospital',
+};
+
 function doSearch(location, type) {
   currentMarkers.forEach(m => m.setMap(null));
   currentMarkers = [];
   document.getElementById('results-list').innerHTML =
     '<p class="text-slate-400 text-sm col-span-3 py-4 text-center">Searching nearby…</p>';
 
-  const isEmergency = type === 'emergency';
-  const request = {
+  const query = TYPE_QUERY[type] || 'hospital';
+  service.textSearch({
+    query,
     location,
     radius: 5000,
-    type: isEmergency ? 'hospital' : type,
-  };
-  if (isEmergency) request.keyword = 'emergency';
-
-  service.nearbySearch(request, (results, status) => {
+  }, (results, status) => {
     if (status !== google.maps.places.PlacesServiceStatus.OK || !results.length) {
       document.getElementById('results-list').innerHTML =
-        '<p class="text-slate-400 text-sm col-span-3 py-4 text-center">No results found nearby. Try searching a city name instead.</p>';
+        `<p class="text-slate-400 text-sm col-span-3 py-4 text-center">No results found (${status}). Make sure Places API is enabled.</p>`;
       return;
     }
     renderResults(results);
