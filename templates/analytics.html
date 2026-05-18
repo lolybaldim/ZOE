@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Health Analytics — ZOE Health{% endblock %}
+{% block page_title %}Health Analytics{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- Summary stat cards -->
+  <div class="grid grid-cols-3 gap-4">
+    <div class="stat-card text-center">
+      <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Consultations (30 days)</p>
+      <p class="text-3xl font-bold text-primary" id="stat-consultations">—</p>
+    </div>
+    <div class="stat-card text-center">
+      <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Medication Adherence</p>
+      <p class="text-3xl font-bold text-secondary" id="stat-adherence">—</p>
+    </div>
+    <div class="stat-card text-center">
+      <p class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Total Appointments</p>
+      <p class="text-3xl font-bold text-slate-700" id="stat-appointments">—</p>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="grid lg:grid-cols-2 gap-5">
+
+    <!-- Consultation trend -->
+    <div class="card">
+      <h3 class="font-semibold text-slate-900 mb-4">Symptom Consultations — Last 30 Days</h3>
+      <canvas id="consultationChart" height="200"></canvas>
+    </div>
+
+    <!-- Appointment history -->
+    <div class="card">
+      <h3 class="font-semibold text-slate-900 mb-4">Appointment History — Last 6 Months</h3>
+      <canvas id="appointmentChart" height="200"></canvas>
+    </div>
+
+  </div>
+
+  <!-- Adherence donut -->
+  <div class="card">
+    <div class="flex flex-col sm:flex-row items-center gap-8">
+      <div class="flex-shrink-0">
+        <h3 class="font-semibold text-slate-900 mb-4 text-center sm:text-left">Medication Adherence — Last 7 Days</h3>
+        <div class="w-44 h-44 mx-auto">
+          <canvas id="adherenceChart"></canvas>
+        </div>
+      </div>
+      <div class="flex-1 space-y-3">
+        <div class="flex items-center gap-3 p-3 rounded-xl bg-secondary/5 border border-secondary/20">
+          <div class="w-3 h-3 rounded-full bg-secondary flex-shrink-0"></div>
+          <div>
+            <p class="text-sm font-medium text-slate-900" id="taken-label">— doses taken</p>
+            <p class="text-xs text-slate-500">This week</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100">
+          <div class="w-3 h-3 rounded-full bg-red-300 flex-shrink-0"></div>
+          <div>
+            <p class="text-sm font-medium text-slate-900" id="missed-label">— doses missed</p>
+            <p class="text-xs text-slate-500">This week</p>
+          </div>
+        </div>
+        <p class="text-xs text-slate-400 px-1" id="adherence-note"></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PRIMARY = '#0EA5E9', SECONDARY = '#10B981', SLATE = '#94A3B8';
+
+async function loadAnalytics() {
+  try {
+    const res = await fetch("{{ url_for('analytics.data') }}");
+    const data = await res.json();
+
+    const totalConsultations = data.consultations.reduce((s, r) => s + r.count, 0);
+    const totalAppointments  = data.appointments.reduce((s, r) => s + r.count, 0);
+    document.getElementById('stat-consultations').textContent = totalConsultations;
+    document.getElementById('stat-adherence').textContent    = data.adherence.rate + '%';
+    document.getElementById('stat-appointments').textContent = totalAppointments;
+    document.getElementById('taken-label').textContent       = `${data.adherence.taken} doses taken`;
+    document.getElementById('missed-label').textContent      = `${data.adherence.missed} doses missed`;
+    document.getElementById('adherence-note').textContent    =
+      data.adherence.rate >= 80
+        ? '✅ Great adherence this week — keep it up!'
+        : '⚠️ Try to stay consistent with your medication schedule.';
+
+    new Chart(document.getElementById('consultationChart'), {
+      type: 'line',
+      data: {
+        labels: data.consultations.map(r => r.day),
+        datasets: [{ label: 'Consultations', data: data.consultations.map(r => r.count),
+          borderColor: PRIMARY, backgroundColor: PRIMARY + '20', fill: true, tension: 0.4, pointRadius: 4 }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    new Chart(document.getElementById('appointmentChart'), {
+      type: 'bar',
+      data: {
+        labels: data.appointments.map(r => r.month),
+        datasets: [{ label: 'Appointments', data: data.appointments.map(r => r.count),
+          backgroundColor: SECONDARY + 'CC', borderRadius: 6 }]
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    const taken = data.adherence.taken, missed = Math.max(0, data.adherence.missed);
+    new Chart(document.getElementById('adherenceChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Taken', 'Missed'],
+        datasets: [{ data: [taken || 0, missed || 1], backgroundColor: [SECONDARY, '#FEE2E2'], borderWidth: 0 }]
+      },
+      options: { cutout: '72%', plugins: { legend: { display: false } } }
+    });
+  } catch (e) {
+    console.error('Failed to load analytics data', e);
+  }
+}
+
+loadAnalytics();
+</script>
+{% endblock %}

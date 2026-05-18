@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Emergency Alerts — ZOE Health{% endblock %}
+{% block page_title %}Emergency Alerts{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-slate-500">{{ emergencies|length }} total alerts logged</p>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Admin
+    </a>
+  </div>
+
+  {% if emergencies %}
+  <div class="space-y-3">
+    {% for em in emergencies %}
+    <div class="card border-l-4 transition {{ 'border-l-red-500' if not em.acknowledged else 'border-l-slate-200' }}"
+         id="em-{{ em.id }}">
+      <div class="flex items-start gap-4">
+
+        <!-- Icon -->
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
+                    {{ 'bg-red-50' if not em.acknowledged else 'bg-slate-50' }}">
+          <span class="text-xl">{{ '🚨' if not em.acknowledged else '✅' }}</span>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="badge badge-emergency">{{ em.urgency_level }}</span>
+            <span class="font-semibold text-slate-900 text-sm">{{ em.user.full_name }}</span>
+            <span class="text-xs text-slate-400">{{ em.created_at.strftime('%b %d, %Y · %H:%M') }}</span>
+          </div>
+          <p class="text-sm text-slate-700 mb-2">
+            <span class="font-medium">Reported:</span> {{ em.trigger_text }}
+          </p>
+          {% if em.ai_response %}
+          <p class="text-xs text-slate-500 bg-slate-50 rounded-xl p-3 border border-slate-100 line-clamp-3">
+            {{ em.ai_response[:300] }}{% if em.ai_response|length > 300 %}…{% endif %}
+          </p>
+          {% endif %}
+          {% if em.acknowledged %}
+          <p class="text-xs text-secondary mt-2 font-medium">
+            ✓ Acknowledged by {{ em.acknowledger.full_name if em.acknowledger else 'Admin' }}
+            {% if em.acknowledged_at %} · {{ em.acknowledged_at.strftime('%b %d, %H:%M') }}{% endif %}
+          </p>
+          {% endif %}
+        </div>
+
+        <!-- Action -->
+        {% if not em.acknowledged %}
+        <button onclick="acknowledge({{ em.id }})"
+                class="btn btn-ghost btn-sm border-red-200 text-red-600 hover:bg-red-50 flex-shrink-0">
+          Acknowledge
+        </button>
+        {% endif %}
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="card">
+    <div class="empty-state py-16">
+      <div class="empty-state-icon">✅</div>
+      <p class="empty-state-text">No emergency alerts</p>
+      <p class="text-xs text-slate-400 mt-1">All clear — no emergency situations have been logged</p>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function acknowledge(id) {
+  try {
+    const res = await fetch(`/admin/emergencies/${id}/acknowledge`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      const card = document.getElementById(`em-${id}`);
+      card.classList.remove('border-l-red-500');
+      card.classList.add('border-l-slate-200');
+      const iconWrap = card.querySelector('.w-10');
+      iconWrap.classList.remove('bg-red-50');
+      iconWrap.classList.add('bg-slate-50');
+      iconWrap.querySelector('span').textContent = '✅';
+      const btn = card.querySelector('button[onclick]');
+      if (btn) {
+        const ack = document.createElement('p');
+        ack.className = 'text-xs text-secondary font-medium mt-2';
+        ack.textContent = '✓ Acknowledged just now';
+        card.querySelector('.flex-1').appendChild(ack);
+        btn.remove();
+      }
+    }
+  } catch (e) {
+    alert('Could not acknowledge. Please try again.');
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — ZOE Health{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- Stat cards -->
+  <div class="grid grid-cols-3 gap-4">
+    {% set admin_stats = [
+      ('Active Users', total_users, '#0ea5e9', 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'),
+      ('Total Appointments', total_appointments, '#10b981', 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'),
+      ('Unacknowledged Alerts', unacknowledged_emergencies, '#ef4444', 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'),
+    ] %}
+    {% for label, value, color, icon_path in admin_stats %}
+    <div class="stat-card">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">{{ label }}</p>
+          <p class="text-3xl font-bold mt-1" style="color: {{ color }}">{{ value }}</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: {{ color }}1a;">
+          <svg class="w-5 h-5" style="color: {{ color }};" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="{{ icon_path }}"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Quick nav -->
+  <div class="grid sm:grid-cols-3 gap-4">
+    <a href="{{ url_for('admin.users') }}"
+       class="card hover:border-primary/40 hover:shadow-md transition group flex items-center gap-4">
+      <div class="w-11 h-11 bg-primary/8 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary/15 transition">
+        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <div>
+        <p class="font-semibold text-slate-900 group-hover:text-primary transition">Manage Users</p>
+        <p class="text-xs text-slate-400 mt-0.5">View & toggle accounts</p>
+      </div>
+    </a>
+
+    <a href="{{ url_for('admin.appointments') }}"
+       class="card hover:border-secondary/40 hover:shadow-md transition group flex items-center gap-4">
+      <div class="w-11 h-11 bg-secondary/8 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-secondary/15 transition">
+        <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      </div>
+      <div>
+        <p class="font-semibold text-slate-900 group-hover:text-secondary transition">Appointments</p>
+        <p class="text-xs text-slate-400 mt-0.5">Review & update status</p>
+      </div>
+    </a>
+
+    <a href="{{ url_for('admin.emergencies') }}"
+       class="card hover:border-red-300 hover:shadow-md transition group flex items-center gap-4 relative">
+      {% if unacknowledged_emergencies > 0 %}
+      <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center animate-pulse">
+        {{ unacknowledged_emergencies }}
+      </span>
+      {% endif %}
+      <div class="w-11 h-11 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-red-100 transition">
+        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <div>
+        <p class="font-semibold text-slate-900 group-hover:text-red-600 transition">Emergency Alerts</p>
+        <p class="text-xs text-slate-400 mt-0.5">
+          {% if unacknowledged_emergencies > 0 %}
+            <span class="text-red-500 font-medium">{{ unacknowledged_emergencies }} need attention</span>
+          {% else %}All clear{% endif %}
+        </p>
+      </div>
+    </a>
+  </div>
+
+  <!-- Recent consultations -->
+  <div class="card p-0 overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-900">Recent AI Consultations</h3>
+      <span class="badge badge-patient">{{ recent_consultations|length }} shown</span>
+    </div>
+    {% if recent_consultations %}
+    <div class="overflow-x-auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Symptoms</th>
+            <th>Urgency</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in recent_consultations %}
+          <tr>
+            <td class="font-medium text-slate-900">{{ c.user.full_name }}</td>
+            <td class="text-slate-600 max-w-xs truncate">{{ c.symptoms }}</td>
+            <td><span class="badge badge-{{ c.urgency_level | lower }}">{{ c.urgency_level }}</span></td>
+            <td class="text-slate-500 text-xs">{{ c.created_at.strftime('%b %d, %H:%M') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state py-12">
+      <div class="empty-state-icon">🩺</div>
+      <p class="empty-state-text">No consultations yet</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

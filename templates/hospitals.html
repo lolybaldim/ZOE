@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Hospital Finder — ZOE Health{% endblock %}
+{% block page_title %}Hospital Finder{% endblock %}
+
+{% block head %}
+<style>#map { height: 440px; }</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- Controls -->
+  <div class="card">
+    <div class="flex flex-wrap items-center gap-3">
+      <!-- Type filters -->
+      <div class="flex flex-wrap gap-2 flex-1">
+        {% for label, type, icon in [('Hospitals','hospital','🏥'),('Clinics','doctor','🏨'),('Pharmacies','pharmacy','💊'),('Emergency','emergency','🚨')] %}
+        <button onclick="searchNearby('{{ type }}')"
+                class="filter-btn flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium bg-white hover:bg-primary hover:text-white hover:border-primary transition">
+          <span>{{ icon }}</span> {{ label }}
+        </button>
+        {% endfor %}
+      </div>
+      <!-- Manual search -->
+      <div class="flex gap-2 flex-shrink-0">
+        <input id="manual-location" type="text" class="form-input w-48"
+               placeholder="Enter city or address…" />
+        <button onclick="searchManual()" class="btn btn-primary">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          Search
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="card p-0 overflow-hidden">
+    <div id="map"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="results-list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let map, service, infoWindow, currentMarkers = [];
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), {
+    zoom: 13,
+    center: { lat: -1.9441, lng: 30.0619 },
+    styles: [{ featureType: 'poi.business', stylers: [{ visibility: 'off' }] }],
+  });
+  infoWindow = new google.maps.InfoWindow();
+  service = new google.maps.places.PlacesService(map);
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        map.setCenter(loc);
+        new google.maps.Marker({
+          position: loc, map, title: 'You',
+          icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#0EA5E9', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+        });
+        doSearch(loc, 'hospital');
+      },
+      () => doSearch({ lat: map.getCenter().lat(), lng: map.getCenter().lng() }, 'hospital')
+    );
+  } else {
+    doSearch({ lat: map.getCenter().lat(), lng: map.getCenter().lng() }, 'hospital');
+  }
+}
+
+function searchNearby(type) {
+  const c = map.getCenter();
+  doSearch({ lat: c.lat(), lng: c.lng() }, type);
+}
+
+function searchManual() {
+  const val = document.getElementById('manual-location').value.trim();
+  if (!val) return;
+  new google.maps.Geocoder().geocode({ address: val }, (results, status) => {
+    if (status === 'OK') {
+      const loc = results[0].geometry.location;
+      map.setCenter(loc);
+      doSearch({ lat: loc.lat(), lng: loc.lng() }, 'hospital');
+    }
+  });
+}
+
+function doSearch(location, type) {
+  currentMarkers.forEach(m => m.setMap(null));
+  currentMarkers = [];
+  document.getElementById('results-list').innerHTML =
+    '<p class="text-slate-400 text-sm col-span-3 py-4 text-center">Searching nearby…</p>';
+
+  const isEmergency = type === 'emergency';
+  const request = {
+    location,
+    radius: 5000,
+    type: isEmergency ? 'hospital' : type,
+  };
+  if (isEmergency) request.keyword = 'emergency';
+
+  service.nearbySearch(request, (results, status) => {
+    if (status !== google.maps.places.PlacesServiceStatus.OK || !results.length) {
+      document.getElementById('results-list').innerHTML =
+        '<p class="text-slate-400 text-sm col-span-3 py-4 text-center">No results found nearby. Try searching a city name instead.</p>';
+      return;
+    }
+    renderResults(results);
+  });
+}
+
+function renderResults(places) {
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+  places.slice(0, 12).forEach(place => {
+    const marker = new google.maps.Marker({ position: place.geometry.location, map, title: place.name });
+    currentMarkers.push(marker);
+    marker.addListener('click', () => {
+      infoWindow.setContent(`<strong>${place.name}</strong><br/>${place.vicinity || ''}`);
+      infoWindow.open(map, marker);
+    });
+
+    const card = document.createElement('div');
+    card.className = 'card hover:border-primary/40 cursor-pointer transition';
+    const isOpen = place.opening_hours?.open_now;
+    card.innerHTML = `
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center text-lg flex-shrink-0">🏥</div>
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-slate-900 text-sm truncate">${place.name}</p>
+          <p class="text-xs text-slate-500 mt-0.5 truncate">${place.vicinity || 'Address unavailable'}</p>
+          <div class="flex items-center gap-2 mt-1.5">
+            ${place.rating ? `<span class="text-xs text-amber-500 font-medium">★ ${place.rating}</span>` : ''}
+            ${place.opening_hours != null ? `<span class="text-xs font-medium ${isOpen ? 'text-secondary' : 'text-red-500'}">${isOpen ? 'Open now' : 'Closed'}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+    card.onclick = () => { map.setCenter(place.geometry.location); map.setZoom(16); };
+    list.appendChild(card);
+  });
+}
+</script>
+<script async defer
+  src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap">
+</script>
+{% endblock %}

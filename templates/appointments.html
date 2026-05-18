@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Appointments — ZOE Health{% endblock %}
+{% block page_title %}Appointments{% endblock %}
+
+{% block content %}
+<div class="grid lg:grid-cols-3 gap-5">
+
+  <!-- Book form -->
+  <div class="card">
+    <h3 class="font-semibold text-slate-900 mb-4 pb-3 border-b border-slate-100">Book Appointment</h3>
+    <form method="POST" action="{{ url_for('appointments.index') }}" class="space-y-4">
+      <div>
+        <label class="form-label">Date</label>
+        <input type="date" name="date" required min="{{ today }}" class="form-input" />
+      </div>
+      <div>
+        <label class="form-label">Time</label>
+        <input type="time" name="time" required class="form-input" />
+      </div>
+      <div>
+        <label class="form-label">Doctor <span class="text-slate-400 font-normal">(optional)</span></label>
+        <select name="doctor_id" class="form-input">
+          <option value="">— Any available —</option>
+          {% for doc in doctors %}
+          <option value="{{ doc.id }}">Dr. {{ doc.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Reason for Visit</label>
+        <textarea name="reason" rows="3" required class="form-input"
+                  placeholder="Briefly describe why you need this appointment…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary w-full justify-center shadow-lg shadow-primary/20">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Book Appointment
+      </button>
+    </form>
+  </div>
+
+  <!-- List -->
+  <div class="lg:col-span-2 card p-0 overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="font-semibold text-slate-900">Your Appointments</h3>
+      <span class="badge badge-patient">{{ appointments|length }} total</span>
+    </div>
+    {% if appointments %}
+    <div class="divide-y divide-slate-100">
+      {% for appt in appointments %}
+      <div class="flex items-start gap-4 px-5 py-4 hover:bg-slate-50 transition">
+        <div class="w-12 h-12 rounded-xl bg-primary/8 flex flex-col items-center justify-center flex-shrink-0 border border-primary/20">
+          <span class="text-primary font-bold text-sm leading-none">{{ appt.date.strftime('%d') }}</span>
+          <span class="text-primary text-xs mt-0.5">{{ appt.date.strftime('%b') }}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-slate-900 text-sm truncate">{{ appt.reason }}</p>
+          <p class="text-xs text-slate-400 mt-0.5">
+            {{ appt.date.strftime('%A, %B %d %Y') }} · {{ appt.time.strftime('%H:%M') }}
+            {% if appt.doctor %}· Dr. {{ appt.doctor.full_name }}{% endif %}
+          </p>
+          {% if appt.notes %}
+          <p class="text-xs text-slate-400 mt-1 italic truncate">{{ appt.notes }}</p>
+          {% endif %}
+        </div>
+        <div class="flex flex-col items-end gap-2 flex-shrink-0">
+          <span class="badge badge-{{ appt.status }}">{{ appt.status.title() }}</span>
+          {% if appt.status in ['pending','confirmed'] and appt.date >= today %}
+          <form method="POST" action="{{ url_for('appointments.cancel', appt_id=appt.id) }}">
+            <button type="submit" onclick="return confirm('Cancel this appointment?')"
+                    class="text-xs text-red-400 hover:text-red-600 hover:underline transition">Cancel</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state py-16">
+      <div class="empty-state-icon">📅</div>
+      <p class="empty-state-text">No appointments yet</p>
+      <p class="text-xs text-slate-400 mt-1">Use the form to book your first appointment</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

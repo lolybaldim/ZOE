@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZOE — AI Health Access Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { primary: '#0ea5e9', secondary: '#10b981' } } } }</script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    .fade-up { animation: fadeUp 0.6s ease-out forwards; }
+    .fade-up-1 { animation-delay: 0.1s; opacity: 0; }
+    .fade-up-2 { animation-delay: 0.2s; opacity: 0; }
+    .fade-up-3 { animation-delay: 0.3s; opacity: 0; }
+    .gradient-text { background: linear-gradient(135deg, #0ea5e9, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  </style>
+</head>
+<body class="bg-white text-slate-800 antialiased">
+
+  <!-- Nav -->
+  <nav class="border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-sm z-50">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+          <span class="text-white font-bold text-sm">Z</span>
+        </div>
+        <span class="font-bold text-slate-900 text-lg">ZOE Health</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="{{ url_for('auth.login') }}" class="text-sm text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 font-medium transition">Sign In</a>
+        <a href="{{ url_for('auth.signup') }}" class="text-sm bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-sky-600 transition">Get Started Free</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="max-w-6xl mx-auto px-6 pt-20 pb-16">
+    <div class="text-center max-w-3xl mx-auto fade-up">
+      <div class="inline-flex items-center gap-2 bg-primary/8 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-6">
+        <span class="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+        Powered by Google Gemma 4 · Gemma 4 Good Hackathon
+      </div>
+      <h1 class="text-5xl sm:text-6xl font-bold text-slate-900 leading-[1.1] mb-6">
+        AI Healthcare for<br/><span class="gradient-text">Underserved Communities</span>
+      </h1>
+      <p class="text-xl text-slate-500 leading-relaxed mb-8">
+        Instant symptom checking, emergency detection, multilingual support, and digital health records — designed for Rwanda, Sudan, and beyond.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="{{ url_for('auth.signup') }}" class="px-6 py-3 bg-primary text-white rounded-xl font-semibold text-base hover:bg-sky-600 transition shadow-lg shadow-primary/25">
+          Start for Free →
+        </a>
+        <a href="#features" class="px-6 py-3 border border-slate-200 text-slate-700 rounded-xl font-semibold text-base hover:bg-slate-50 transition">
+          See Features
+        </a>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 fade-up fade-up-1">
+      {% for value, label in [('< 3s','AI Response'), ('4+','Languages'), ('90%+','Emergency Accuracy'), ('100%','Mobile Ready')] %}
+      <div class="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
+        <p class="text-3xl font-bold text-slate-900">{{ value }}</p>
+        <p class="text-sm text-slate-500 mt-1">{{ label }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="bg-slate-50 py-20 border-y border-slate-100">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-12 fade-up">
+        <h2 class="text-3xl font-bold text-slate-900 mb-3">Everything in One Platform</h2>
+        <p class="text-slate-500">Built for real impact — designed for the communities that need it most.</p>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 fade-up fade-up-2">
+        {% set features = [
+          ('🩺', 'AI Symptom Checker', 'Describe symptoms, get instant triage with urgency levels and recommended actions.', 'bg-sky-50 text-sky-600'),
+          ('🚨', 'Emergency Detection', 'Real-time alerts for life-threatening symptoms. Every second counts.', 'bg-red-50 text-red-600'),
+          ('📋', 'Digital Health Records', 'Encrypted health history accessible from any device, anytime.', 'bg-violet-50 text-violet-600'),
+          ('📅', 'Appointment Booking', 'Book with doctors, track status, get reminders. No more missed visits.', 'bg-emerald-50 text-emerald-600'),
+          ('💊', 'Medicine Reminders', 'Track medications, set daily reminders, never miss a critical dose.', 'bg-amber-50 text-amber-600'),
+          ('🗺️', 'Hospital Finder', 'Find the nearest hospitals, clinics, and pharmacies on an interactive map.', 'bg-rose-50 text-rose-600'),
+          ('🌍', 'Multilingual AI', 'English, French, Arabic (RTL), and Swahili — AI responds in your language.', 'bg-indigo-50 text-indigo-600'),
+          ('📊', 'Health Analytics', 'Track symptom trends, medication adherence, and appointment history.', 'bg-teal-50 text-teal-600'),
+          ('📄', 'PDF Reports', 'Download complete medical history as a formatted PDF for any doctor visit.', 'bg-slate-100 text-slate-600'),
+        ] %}
+        {% for icon, title, desc, color in features %}
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <div class="w-10 h-10 {{ color }} rounded-xl flex items-center justify-center text-xl mb-4">{{ icon }}</div>
+          <h3 class="font-semibold text-slate-900 mb-2">{{ title }}</h3>
+          <p class="text-sm text-slate-500 leading-relaxed">{{ desc }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Target regions -->
+  <section class="max-w-6xl mx-auto px-6 py-20">
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <div class="inline-flex items-center gap-2 bg-secondary/10 text-secondary px-3 py-1 rounded-full text-xs font-semibold mb-4">IMPACT</div>
+        <h2 class="text-3xl font-bold text-slate-900 mb-4">Built for Those Who Need It Most</h2>
+        <p class="text-slate-500 leading-relaxed mb-6">
+          Millions in low-resource communities face life-threatening barriers to healthcare. ZOE bridges the gap with AI-first triage, digital records, and emergency detection — in their language.
+        </p>
+        <div class="grid grid-cols-2 gap-3">
+          {% for region, flag in [('Rwanda','🇷🇼'), ('Sudan','🇸🇩'), ('Sub-Saharan Africa','🌍'), ('MENA Region','🌐')] %}
+          <div class="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-sm font-medium text-slate-700">
+            <span class="text-xl">{{ flag }}</span> {{ region }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        {% for icon, label, desc in [('🏥','Hospitals Too Far','Rural patients delay care until critical'),('💸','Too Expensive','People self-diagnose incorrectly'),('📄','Paper Records','Doctors lack complete patient history'),('🗣️','Language Barriers','Non-native speakers can\'t access info')] %}
+        <div class="p-5 bg-red-50 rounded-2xl border border-red-100">
+          <span class="text-2xl block mb-2">{{ icon }}</span>
+          <p class="font-semibold text-slate-900 text-sm">{{ label }}</p>
+          <p class="text-xs text-slate-500 mt-1">{{ desc }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="bg-slate-900 py-20">
+    <div class="max-w-2xl mx-auto text-center px-6">
+      <h2 class="text-3xl font-bold text-white mb-4">Start Accessing Better Healthcare Today</h2>
+      <p class="text-slate-400 mb-8">Free to use. No credit card. Works on any device.</p>
+      <a href="{{ url_for('auth.signup') }}" class="inline-flex items-center gap-2 px-8 py-3.5 bg-primary text-white font-bold rounded-xl hover:bg-sky-500 transition shadow-lg shadow-primary/30">
+        Create Your Account →
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-100 py-8">
+    <div class="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
+          <span class="text-white font-bold text-xs">Z</span>
+        </div>
+        <span>ZOE Health · Gemma 4 Good Hackathon</span>
+      </div>
+      <p>Because everyone deserves access to healthcare, regardless of where they live.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

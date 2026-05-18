@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Health Education — ZOE Health{% endblock %}
+{% block page_title %}Health Education{% endblock %}
+
+{% block content %}
+<div class="grid lg:grid-cols-3 gap-5">
+
+  <!-- Topic cards -->
+  <div class="lg:col-span-1 space-y-3">
+    <div class="card">
+      <h3 class="font-semibold text-slate-900 mb-3 pb-3 border-b border-slate-100">Browse Topics</h3>
+      <div class="space-y-2">
+        {% for topic in topics %}
+        <button onclick="askTopic('{{ topic.id }}')"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-primary/5 hover:text-primary transition group">
+          <span class="text-xl flex-shrink-0">{{ topic.icon }}</span>
+          <span class="text-sm font-medium text-slate-700 group-hover:text-primary transition truncate">{{ topic.title }}</span>
+          <svg class="w-4 h-4 text-slate-300 group-hover:text-primary ml-auto flex-shrink-0 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Q&A panel -->
+  <div class="lg:col-span-2 card flex flex-col" style="min-height: 520px;">
+    <!-- Header -->
+    <div class="flex items-center gap-3 pb-4 border-b border-slate-100 mb-5 flex-shrink-0">
+      <div class="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
+        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      </div>
+      <div>
+        <p class="font-semibold text-slate-900 text-sm">ZOE Education Assistant</p>
+        <p class="text-xs text-slate-400">Powered by Google Gemma 4 · Select a topic or ask your own question</p>
+      </div>
+    </div>
+
+    <!-- Answer area -->
+    <div class="flex-1 overflow-y-auto mb-4">
+      <div id="edu-loading" class="hidden flex items-start gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">Z</div>
+        <div class="bubble-ai text-slate-400 italic text-sm">Looking that up for you…</div>
+      </div>
+      <div id="edu-result" class="hidden">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">Z</div>
+          <div class="bubble-ai text-sm leading-relaxed whitespace-pre-wrap" id="edu-text"></div>
+        </div>
+      </div>
+      <div id="edu-empty" class="flex flex-col items-center justify-center h-full py-16 text-center">
+        <div class="w-14 h-14 bg-primary/8 rounded-2xl flex items-center justify-center mb-4">
+          <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <p class="font-medium text-slate-700">Ask a health question</p>
+        <p class="text-xs text-slate-400 mt-1">Choose a topic on the left or type your own question below</p>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="border-t border-slate-100 pt-4 flex-shrink-0">
+      <div class="flex gap-2">
+        <select id="edu-lang" class="form-input w-24 flex-shrink-0 text-xs py-2.5">
+          <option value="en" {% if current_user.language=='en' %}selected{% endif %}>🇬🇧 EN</option>
+          <option value="fr" {% if current_user.language=='fr' %}selected{% endif %}>🇫🇷 FR</option>
+          <option value="ar" {% if current_user.language=='ar' %}selected{% endif %}>🇸🇦 AR</option>
+          <option value="sw" {% if current_user.language=='sw' %}selected{% endif %}>🇹🇿 SW</option>
+        </select>
+        <input id="edu-input" type="text" class="form-input flex-1"
+               placeholder="e.g. How can I prevent malaria?" autocomplete="off" />
+        <button onclick="askQuestion()" class="btn btn-primary flex-shrink-0 px-5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+          Ask
+        </button>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">Press Enter to ask · For educational purposes only — not medical advice</p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TOPIC_QUESTIONS = {
+  maternal:   'What should pregnant women know to stay healthy during pregnancy?',
+  hygiene:    'What are the most important hygiene and sanitation practices to prevent disease?',
+  nutrition:  'What foods should people eat to maintain good nutrition and health?',
+  prevention: 'How can communities prevent common diseases like malaria, cholera, and HIV?',
+  mental:     'What are the basics of mental health and how can someone manage stress?',
+  child:      'What are the key things parents should know to keep young children healthy?',
+};
+
+function askTopic(id) {
+  const q = TOPIC_QUESTIONS[id];
+  if (q) { document.getElementById('edu-input').value = q; askQuestion(); }
+}
+
+function formatMd(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/^\d+\.\s+(.+)$/gm,'<li class="ml-4 list-decimal">$1</li>')
+    .replace(/^\*\s+(.+)$/gm,'<li class="ml-4 list-disc">$1</li>')
+    .replace(/(<li[\s\S]*?<\/li>\n?)+/g, s => `<ul class="space-y-1 my-2">${s}</ul>`)
+    .replace(/\n{2,}/g,'</p><p class="mt-2">')
+    .replace(/\n/g,'<br/>')
+    .replace(/^/,'<p>').replace(/$/,'</p>');
+}
+
+async function askQuestion() {
+  const question = document.getElementById('edu-input').value.trim();
+  const language = document.getElementById('edu-lang').value;
+  if (!question) return;
+
+  document.getElementById('edu-empty').classList.add('hidden');
+  document.getElementById('edu-result').classList.add('hidden');
+  document.getElementById('edu-loading').classList.remove('hidden');
+
+  try {
+    const res = await fetch("{{ url_for('education.ask') }}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, language }),
+    });
+    const data = await res.json();
+    document.getElementById('edu-loading').classList.add('hidden');
+    document.getElementById('edu-text').innerHTML = formatMd(data.response);
+    document.getElementById('edu-result').classList.remove('hidden');
+  } catch (e) {
+    document.getElementById('edu-loading').classList.add('hidden');
+    document.getElementById('edu-text').textContent = 'Could not load response. Please try again.';
+    document.getElementById('edu-result').classList.remove('hidden');
+  }
+}
+
+document.getElementById('edu-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') askQuestion();
+});
+</script>
+{% endblock %}

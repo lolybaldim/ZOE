@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}User Management — ZOE Health{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-slate-500">{{ users|length }} total users registered</p>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-ghost btn-sm">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Admin
+    </a>
+  </div>
+
+  <div class="card p-0 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Language</th>
+            <th>Joined</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr class="{{ 'opacity-50' if not user.is_active }}">
+            <td>
+              <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
+                  {{ user.first_name[0] }}
+                </div>
+                <span class="font-medium text-slate-900">{{ user.full_name }}</span>
+              </div>
+            </td>
+            <td class="text-slate-600">{{ user.email }}</td>
+            <td>
+              <span class="badge
+                {% if user.role == 'admin' %}bg-purple-100 text-purple-700
+                {% elif user.role == 'doctor' %}badge-patient
+                {% else %}bg-slate-100 text-slate-600{% endif %}">
+                {{ user.role.title() }}
+              </span>
+            </td>
+            <td class="text-slate-500 uppercase text-xs font-medium">{{ user.language }}</td>
+            <td class="text-slate-500 text-xs">{{ user.created_at.strftime('%b %d, %Y') }}</td>
+            <td>
+              <span class="badge {{ 'badge-confirmed' if user.is_active else 'bg-slate-100 text-slate-500' }}">
+                {{ 'Active' if user.is_active else 'Inactive' }}
+              </span>
+            </td>
+            <td>
+              {% if user.id != current_user.id %}
+              <form method="POST" action="{{ url_for('admin.toggle_user', user_id=user.id) }}"
+                    onsubmit="return confirm('{{ 'Deactivate' if user.is_active else 'Activate' }} {{ user.email }}?')">
+                <button type="submit"
+                        class="text-xs font-medium {{ 'text-red-400 hover:text-red-600' if user.is_active else 'text-secondary hover:text-secondary/80' }} hover:underline transition">
+                  {{ 'Deactivate' if user.is_active else 'Activate' }}
+                </button>
+              </form>
+              {% else %}
+              <span class="text-xs text-slate-300">You</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

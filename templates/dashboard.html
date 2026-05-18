@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ZOE Health{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Welcome row -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-xl font-bold text-slate-900">Good day, {{ current_user.first_name }} 👋</h2>
+      <p class="text-sm text-slate-500 mt-0.5">Here's your health overview for today.</p>
+    </div>
+    <a href="{{ url_for('ai_chat.index') }}"
+       class="btn btn-primary hidden sm:inline-flex shadow-lg shadow-primary/20">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+      Check Symptoms
+    </a>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    {% set stats = [
+      ('Upcoming Appts', upcoming_appointments|length, '#0ea5e9', 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'),
+      ('Active Meds', active_medications|length, '#10b981', 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z'),
+      ('Taken Today', taken_today, '#8b5cf6', 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'),
+      ('Consultations', recent_consultations|length, '#f59e0b', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'),
+    ] %}
+    {% for label, value, color, icon_path in stats %}
+    <div class="stat-card">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">{{ label }}</p>
+          <p class="text-3xl font-bold text-slate-900 mt-1">{{ value }}</p>
+        </div>
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: {{ color }}1a;">
+          <svg class="w-5 h-5" style="color:{{ color }};" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="{{ icon_path }}"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Main grid -->
+  <div class="grid lg:grid-cols-2 gap-5">
+
+    <!-- Upcoming Appointments -->
+    <div class="card">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-slate-900">Upcoming Appointments</h3>
+        <a href="{{ url_for('appointments.index') }}" class="text-xs text-primary hover:underline font-medium">View all</a>
+      </div>
+      {% if upcoming_appointments %}
+      <div class="space-y-2">
+        {% for appt in upcoming_appointments %}
+        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition">
+          <div class="w-11 h-11 rounded-xl bg-primary/10 flex flex-col items-center justify-center flex-shrink-0">
+            <span class="text-primary font-bold text-sm leading-none">{{ appt.date.strftime('%d') }}</span>
+            <span class="text-primary text-xs leading-none mt-0.5">{{ appt.date.strftime('%b') }}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-900 truncate">{{ appt.reason }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">{{ appt.date.strftime('%A') }} · {{ appt.time.strftime('%H:%M') }}{% if appt.doctor %} · Dr. {{ appt.doctor.last_name }}{% endif %}</p>
+          </div>
+          <span class="badge badge-{{ appt.status }} flex-shrink-0">{{ appt.status.title() }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">📅</div>
+        <p class="empty-state-text">No upcoming appointments</p>
+        <a href="{{ url_for('appointments.index') }}" class="text-xs text-primary hover:underline mt-2 inline-block">Book one →</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Recent Consultations -->
+    <div class="card">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-slate-900">Recent Consultations</h3>
+        <a href="{{ url_for('ai_chat.index') }}" class="text-xs text-primary hover:underline font-medium">New chat</a>
+      </div>
+      {% if recent_consultations %}
+      <div class="space-y-2">
+        {% for c in recent_consultations %}
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="badge badge-{{ c.urgency_level | lower }}">{{ c.urgency_level }}</span>
+            <span class="text-xs text-slate-400">{{ c.created_at.strftime('%b %d, %H:%M') }}</span>
+          </div>
+          <p class="text-sm text-slate-700 truncate">{{ c.symptoms }}</p>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">🩺</div>
+        <p class="empty-state-text">No consultations yet</p>
+        <a href="{{ url_for('ai_chat.index') }}" class="text-xs text-primary hover:underline mt-2 inline-block">Start AI chat →</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Today's Medications -->
+    <div class="card">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-slate-900">Today's Medications</h3>
+        <a href="{{ url_for('medications.index') }}" class="text-xs text-primary hover:underline font-medium">Manage</a>
+      </div>
+      {% if active_medications %}
+      <div class="space-y-2">
+        {% for med in active_medications %}
+        <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 transition">
+          <div class="w-9 h-9 bg-secondary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg class="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-900 truncate">{{ med.name }}</p>
+            <p class="text-xs text-slate-400">{{ med.dosage }} · {{ med.frequency.replace('_',' ').title() }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">💊</div>
+        <p class="empty-state-text">No active medications</p>
+        <a href="{{ url_for('medications.index') }}" class="text-xs text-primary hover:underline mt-2 inline-block">Add medication →</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <h3 class="font-semibold text-slate-900 mb-4">Quick Actions</h3>
+      <div class="grid grid-cols-2 gap-3">
+        {% for href, icon_path, label, bg, fg in [
+          (url_for('ai_chat.index'), 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', 'Check Symptoms', 'bg-primary/8 hover:bg-primary/15', 'text-primary'),
+          (url_for('appointments.index'), 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', 'Book Appointment', 'bg-secondary/8 hover:bg-secondary/15', 'text-secondary'),
+          (url_for('hospitals.index'), 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z', 'Find Hospital', 'bg-violet-50 hover:bg-violet-100', 'text-violet-600'),
+          (url_for('reports.download'), 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4', 'Download Report', 'bg-slate-100 hover:bg-slate-200', 'text-slate-600'),
+        ] %}
+        <a href="{{ href }}"
+           class="flex flex-col items-center gap-2 p-4 rounded-xl {{ bg }} transition text-center">
+          <svg class="w-5 h-5 {{ fg }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ icon_path }}"/>
+          </svg>
+          <span class="text-xs font-medium {{ fg }}">{{ label }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}AI Symptom Checker — ZOE Health{% endblock %}
+{% block page_title %}AI Symptom Checker{% endblock %}
+
+{% block content %}
+<div class="grid lg:grid-cols-3 gap-5 h-full">
+
+  <!-- Chat panel -->
+  <div class="lg:col-span-2 card flex flex-col" style="height: calc(100vh - 10rem);">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 pb-4 border-b border-slate-100 mb-4 flex-shrink-0">
+      <div class="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center">
+        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+      </div>
+      <div>
+        <p class="font-semibold text-slate-900 text-sm">ZOE AI Assistant</p>
+        <p class="text-xs text-slate-400">Powered by Google Gemma 4 · Not a medical diagnosis</p>
+      </div>
+      <div class="ml-auto flex items-center gap-1.5">
+        <span class="w-2 h-2 bg-secondary rounded-full animate-pulse"></span>
+        <span class="text-xs text-secondary font-medium">Online</span>
+      </div>
+    </div>
+
+    <!-- Emergency banner -->
+    <div id="emergency-banner" class="hidden mb-4 bg-red-50 border border-red-200 rounded-xl p-4 animate-pulse-red flex-shrink-0">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl flex-shrink-0">🚨</span>
+        <div class="flex-1">
+          <p class="font-bold text-red-700">SEEK EMERGENCY MEDICAL HELP IMMEDIATELY</p>
+          <p class="text-sm text-red-600 mt-1">Your symptoms may be life-threatening. Call emergency services or go to the nearest emergency room now.</p>
+        </div>
+        <button onclick="dismissEmergency()" class="flex-shrink-0 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded-lg transition">Dismiss</button>
+      </div>
+    </div>
+
+    <!-- Urgency bar -->
+    <div id="urgency-bar" class="hidden mb-4 px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2 flex-shrink-0"></div>
+
+    <!-- Messages -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 pr-1">
+      <!-- Welcome -->
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <span class="text-primary font-bold text-xs">Z</span>
+        </div>
+        <div class="bubble-ai">
+          Hello! I'm ZOE, your AI health assistant. Tell me your symptoms and I'll assess your situation. I provide guidance only — always consult a real doctor for medical decisions. 🩺
+        </div>
+      </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="border-t border-slate-100 pt-4 mt-4 flex-shrink-0">
+      <div class="flex gap-2">
+        <select id="lang-select" class="form-input w-24 flex-shrink-0 text-xs py-2.5">
+          <option value="en" {% if current_user.language=='en' %}selected{% endif %}>🇬🇧 EN</option>
+          <option value="fr" {% if current_user.language=='fr' %}selected{% endif %}>🇫🇷 FR</option>
+          <option value="ar" {% if current_user.language=='ar' %}selected{% endif %}>🇸🇦 AR</option>
+          <option value="sw" {% if current_user.language=='sw' %}selected{% endif %}>🇹🇿 SW</option>
+        </select>
+        <input id="chat-input" type="text" class="form-input flex-1"
+               placeholder="Describe your symptoms… e.g. I have fever and headache"
+               autocomplete="off" />
+        <button id="send-btn" onclick="sendMessage()"
+                class="btn btn-primary flex-shrink-0 px-5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+          Send
+        </button>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">Press Enter to send · This is not a substitute for professional medical advice</p>
+    </div>
+  </div>
+
+  <!-- Sidebar: history -->
+  <div class="card overflow-hidden flex flex-col" style="height: calc(100vh - 10rem);">
+    <h3 class="font-semibold text-slate-900 text-sm mb-4 flex-shrink-0">Consultation History</h3>
+    <div class="flex-1 overflow-y-auto space-y-2">
+      {% if recent_consultations %}
+        {% for c in recent_consultations %}
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition cursor-default">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="badge badge-{{ c.urgency_level | lower }} text-xs">{{ c.urgency_level }}</span>
+            <span class="text-xs text-slate-400 ml-auto">{{ c.created_at.strftime('%b %d') }}</span>
+          </div>
+          <p class="text-xs text-slate-600 truncate">{{ c.symptoms }}</p>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon text-2xl">💬</div>
+        <p class="empty-state-text text-xs">No previous consultations</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SEND_URL = "{{ url_for('ai_chat.send') }}";
+const URGENCY_STYLES = {
+  Low:       'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Moderate:  'bg-amber-50 text-amber-700 border-amber-200',
+  High:      'bg-orange-50 text-orange-700 border-orange-200',
+  Emergency: 'bg-red-50 text-red-700 border-red-200',
+};
+const URGENCY_ICONS = { Low:'✅', Moderate:'⚠️', High:'🔶', Emergency:'🚨' };
+
+function formatAI(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*\s(.+)/gm,'<li class="ml-4 list-disc">$1</li>')
+    .replace(/(<li[\s\S]*?<\/li>)/g,'<ul class="space-y-1 my-1">$1</ul>')
+    .replace(/\n{2,}/g,'</p><p class="mt-2">')
+    .replace(/\n/g,'<br/>')
+    .replace(/^/,'<p>').replace(/$/,'</p>');
+}
+
+function appendMessage(text, sender) {
+  const wrap = document.createElement('div');
+  wrap.className = 'flex items-start gap-3 animate-fade-up ' + (sender==='user' ? 'flex-row-reverse' : '');
+  const avatar = document.createElement('div');
+  avatar.className = 'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ' +
+    (sender==='user' ? 'bg-primary text-white' : 'bg-primary/10 text-primary');
+  avatar.textContent = sender==='user' ? '{{ current_user.first_name[0] }}' : 'Z';
+  const bubble = document.createElement('div');
+  bubble.className = sender==='user' ? 'bubble-user' : 'bubble-ai';
+  if (sender === 'ai') {
+    bubble.innerHTML = formatAI(text);
+  } else {
+    bubble.textContent = text;
+  }
+  wrap.append(avatar, bubble);
+  const msgs = document.getElementById('chat-messages');
+  msgs.appendChild(wrap);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showUrgency(level) {
+  const bar = document.getElementById('urgency-bar');
+  bar.className = 'mb-4 px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2 flex-shrink-0 ' + (URGENCY_STYLES[level] || URGENCY_STYLES.Low);
+  bar.innerHTML = `<span>${URGENCY_ICONS[level] || ''}</span> Urgency Level: <strong>${level}</strong>`;
+  bar.classList.remove('hidden');
+}
+
+function dismissEmergency() {
+  if (confirm('Please confirm you understand this is an emergency and will seek immediate medical help.'))
+    document.getElementById('emergency-banner').classList.add('hidden');
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  const language = document.getElementById('lang-select').value;
+  if (!message) return;
+  input.value = '';
+  document.getElementById('send-btn').disabled = true;
+  appendMessage(message, 'user');
+
+  const typing = document.createElement('div');
+  typing.id = 'typing-indicator';
+  typing.className = 'flex items-start gap-3';
+  typing.innerHTML = '<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">Z</div><div class="bubble-ai text-slate-400 italic text-sm">Analyzing your symptoms…</div>';
+  document.getElementById('chat-messages').appendChild(typing);
+  document.getElementById('chat-messages').scrollTop = 9999;
+
+  try {
+    const res = await fetch(SEND_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message, language }),
+    });
+    const data = await res.json();
+    document.getElementById('typing-indicator')?.remove();
+    appendMessage(data.response, 'ai');
+    showUrgency(data.urgency);
+    if (data.is_emergency) {
+      document.getElementById('emergency-banner').classList.remove('hidden');
+      document.getElementById('emergency-banner').scrollIntoView({ behavior:'smooth' });
+    }
+  } catch {
+    document.getElementById('typing-indicator')?.remove();
+    appendMessage('Sorry, I could not process your request. Please try again.', 'ai');
+  } finally {
+    document.getElementById('send-btn').disabled = false;
+    input.focus();
+  }
+}
+
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+</script>
+{% endblock %}
