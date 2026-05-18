@@ -7,3 +7,7 @@ instance/
 .DS_Store
 .claude/
 .claude/
+node_modules/
+package-lock.json
+package.json
+tailwind.config.js
